@@ -1,0 +1,49 @@
+# Rust
+target/
+Cargo.lock
+**/*.rs.bk
+*.pdb
+
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+go.work
+vendor/
+
+# Proto generated files
+*.pb.go
+proto/*.pb.go
+grpc-server/proto/
+
+# Environment
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+
+#Examples
+examples/minikube-linux-amd64
+minikube-linux-amd64
+minikube-linux-amd64
