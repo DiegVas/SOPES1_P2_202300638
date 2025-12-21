@@ -1,0 +1,27 @@
+# Build stage
+FROM golang:1.24-alpine AS builder
+
+WORKDIR /app
+
+# Copiar go.mod y descargar dependencias
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copiar código fuente
+COPY . .
+
+# Compilar
+RUN CGO_ENABLED=0 GOOS=linux go build -o grpc-server main.go
+
+# Runtime stage
+FROM alpine:latest
+
+WORKDIR /root/
+
+RUN apk --no-cache add ca-certificates
+
+COPY --from=builder /app/grpc-server .
+
+EXPOSE 50051 50052
+
+CMD ["./grpc-server"]
