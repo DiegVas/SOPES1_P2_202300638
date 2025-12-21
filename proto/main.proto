@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package tweet;
+
+// Asegurate que esta ruta sea correcta para tu proyecto
+option go_package = "./;tweet";
+
+service TweetService {
+  // Línea 9: Nota el 'rpc' al inicio
+  rpc AddTweet (TweetRequest) returns (TweetResponse);
+}
+
+message TweetRequest {
+  string nombre = 1;
+  string cuerpo = 2;
+}
+
+message TweetResponse {
+  string mensaje = 1;
+}
