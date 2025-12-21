@@ -1,0 +1,42 @@
+# Deployment 1: Go API REST + gRPC Client
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: go-api-rest
+  namespace: blackfriday
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: go-api-rest
+  template:
+    metadata:
+      labels:
+        app: go-api-rest
+    spec:
+      containers:
+        - name: go-api-rest
+          image: go-api-rest:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: GRPC_SERVERS
+              value: "grpc-server-1-service:50051,grpc-server-2-service:50051"
+---
+# Service para Go API REST
+apiVersion: v1
+kind: Service
+metadata:
+  name: go-api-rest-service
+  namespace: blackfriday
+spec:
+  selector:
+    app: go-api-rest
+  ports:
+    - port: 8080
+      targetPort: 8080
+      nodePort: 30080
+  type: NodePort
