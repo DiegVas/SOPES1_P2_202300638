@@ -1,0 +1,17 @@
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: blackfriday
+---
+# ConfigMap para configuraciones compartidas
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: blackfriday
+data:
+  KAFKA_BROKER: "kafka-service:9092"
+  KAFKA_TOPIC: "ventas"
+  GRPC_PORT: "50051"
+  PORT: "8080"

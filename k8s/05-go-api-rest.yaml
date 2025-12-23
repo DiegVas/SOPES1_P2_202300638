@@ -16,8 +16,8 @@ spec:
     spec:
       containers:
         - name: go-api-rest
-          image: go-api-rest:latest
-          imagePullPolicy: Never
+          image: 18.222.2.22:5000/go-api-rest:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
           env:

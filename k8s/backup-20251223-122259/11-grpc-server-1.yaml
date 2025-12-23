@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grpc-server-1
+  namespace: blackfriday
+  labels:
+    app: grpc-server-1
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: grpc-server-1
+  template:
+    metadata:
+      labels:
+        app: grpc-server-1
+    spec:
+      containers:
+        - name: grpc-server
+          image: grpc-server:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 50051
+              name: grpc
+          env:
+            - name: GRPC_PORT
+              value: "50051"
+            - name: SERVER_ID
+              value: "grpc-server-1"
+            - name: KAFKA_BROKER
+              value: "kafka-service:9092"
+            - name: KAFKA_TOPIC
+              value: "compras"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: grpc-server-1
+  namespace: blackfriday
+  labels:
+    app: grpc-server-1
+spec:
+  selector:
+    app: grpc-server-1
+  ports:
+    - protocol: TCP
+      port: 50051
+      targetPort: 50051
+      name: grpc
+  type: ClusterIP

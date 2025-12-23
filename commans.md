@@ -404,3 +404,143 @@ Go API REST (Deployment 1 - gRPC Client, 2 réplicas)
    - Data Source: Valkey
    - Command: GET total:compras
 6. Guardar dashboard
+
+---
+
+## 🗄️ Zot Registry - Container Registry OCI
+
+### ¿Qué es Zot?
+
+Zot es un registry de contenedores OCI (Open Container Initiative) compatible con Docker, que permite almacenar y gestionar imágenes Docker localmente en el cluster.
+
+### **Nota Importante para Minikube**
+
+En Minikube, las imágenes construidas con `eval $(minikube docker-env)` ya están disponibles para los pods sin necesidad de un registry externo, ya que comparten el mismo Docker daemon. Sin embargo, Zot Registry se incluye para:
+
+- Demostrar arquitectura de microservicios completa
+- Práctica con registries OCI reales
+- Preparación para entornos multi-nodo
+
+### Configuración Inicial de Zot
+
+```bash
+# 1. Desplegar Zot Registry en Kubernetes
+kubectl apply -f k8s/00-zot-registry.yaml
+
+# 2. Verificar que Zot está funcionando
+kubectl get pods -n blackfriday -l app=zot-registry
+kubectl get svc -n blackfriday zot-service
+
+# 3. Probar acceso al registry
+MINIKUBE_IP=$(minikube ip)
+curl http://${MINIKUBE_IP}:30500/v2/
+
+# 4. Ver catálogo de imágenes
+curl http://${MINIKUBE_IP}:30500/v2/_catalog
+```
+
+### Construcción de Imágenes (Enfoque Minikube)
+
+```bash
+# Configurar Docker para usar daemon de Minikube
+eval $(minikube docker-env)
+
+# Construir todas las imágenes
+docker build -t rust-api:latest -f api/Dockerfile .
+docker build -t go-api-rest:latest -f go-api-rest/Dockerfile.simple go-api-rest/
+docker build -t grpc-server:latest -f grpc-server/Dockerfile.simple grpc-server/
+docker build -t kafka-consumer:latest ./kafka-consumer/
+docker build -t locust:latest ./locust/
+docker build -t nginx-proxy:latest ./nginx/
+
+# Verificar imágenes
+docker images | grep -E "rust-api|go-api-rest|grpc-server|kafka-consumer|locust|nginx-proxy"
+```
+
+### Deployments con Imágenes Locales
+
+Los deployments deben usar `imagePullPolicy: Never` o `IfNotPresent`:
+
+```yaml
+spec:
+  containers:
+    - name: rust-api
+      image: rust-api:latest
+      imagePullPolicy: Never # o IfNotPresent
+```
+
+###Rebuild y Actualización de una Imagen Individual
+
+```bash
+# Configurar Docker para usar minikube
+eval $(minikube docker-env)
+
+# Ejemplo: Actualizar kafka-consumer con Zap logger
+cd kafka-consumer
+docker build -t kafka-consumer:latest .
+
+# Reiniciar el deployment para usar la nueva imagen
+kubectl rollout restart deployment kafka-consumer -n blackfriday
+kubectl rollout status deployment kafka-consumer -n blackfriday
+
+# Verificar logs con Zap
+kubectl logs -f -n blackfriday -l app=kafka-consumer
+```
+
+### Consultas Útiles de Zot (API)
+
+```bash
+MINIKUBE_IP=$(minikube ip)
+
+# Health check
+curl http://${MINIKUBE_IP}:30500/v2/
+
+# Ver catálogo (si hay imágenes pusheadas)
+curl http://${MINIKUBE_IP}:30500/v2/_catalog | jq '.'
+```
+
+### Ventajas del Enfoque con Minikube
+
+✅ **Sin Registry Necesario**: Imágenes disponibles inmediatamente
+✅ **Desarrollo Rápido**: Sin tiempo de push/pull
+✅ **Simplicidad**: Un solo Docker daemon
+✅ **Zot Opcional**: Disponible para práctica y demostración
+
+### Troubleshooting
+
+```bash
+# Si un pod no puede pullear la imagen
+kubectl describe pod <pod-name> -n blackfriday
+
+# Verificar que imagePullPolicy es correcto
+kubectl get deployment <deployment-name> -n blackfriday -o yaml | grep imagePullPolicy
+
+# Verificar que la imagen existe en Docker de Minikube
+eval $(minikube docker-env)
+docker images | grep <image-name>
+
+# Si la imagen no existe, reconstruir
+docker build -t <image-name>:latest <dockerfile-path>
+
+# Reiniciar deployment
+kubectl rollout restart deployment <deployment-name> -n blackfriday
+```
+
+### Ver logs de Zot Registry
+
+```bash
+# Ver logs de Zot
+kubectl logs -n blackfriday -l app=zot-registry
+
+# Ver configuración
+kubectl get configmap zot-config -n blackfriday -o yaml
+
+# Acceder al pod
+kubectl exec -it -n blackfriday $(kubectl get pod -n blackfriday -l app=zot-registry -o jsonpath='{.items[0].metadata.name}') -- sh
+```
+
+---
+
+# IMPORTANTE para la calificaion
+
+kubectl get hpa

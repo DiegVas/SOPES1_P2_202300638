@@ -15,8 +15,8 @@ spec:
     spec:
       containers:
         - name: kafka-consumer
-          image: kafka-consumer:latest
-          imagePullPolicy: Never # Usar imagen local de minikube
+          image: 18.222.2.22:5000/kafka-consumer:latest
+          imagePullPolicy: Always # Usar imagen local de minikube
           env:
             - name: KAFKA_BROKER
               value: "kafka-service:9092"

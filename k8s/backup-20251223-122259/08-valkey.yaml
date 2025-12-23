@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: valkey-service
+  namespace: blackfriday
+  labels:
+    app: valkey
+spec:
+  ports:
+    - port: 6379
+      targetPort: 6379
+      name: redis
+  clusterIP: None # Headless service para StatefulSet
+  selector:
+    app: valkey
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: valkey
+  namespace: blackfriday
+spec:
+  serviceName: valkey-service
+  replicas: 2
+  selector:
+    matchLabels:
+      app: valkey
+  template:
+    metadata:
+      labels:
+        app: valkey
+    spec:
+      containers:
+        - name: valkey
+          image: valkey/valkey:latest
+          ports:
+            - containerPort: 6379
+              name: redis
+          env:
+            - name: VALKEY_REPLICATION_MODE
+              value: "master"
+          volumeMounts:
+            - name: valkey-data
+              mountPath: /data
+          command:
+            - valkey-server
+            - --appendonly
+            - "yes"
+            - --appendfsync
+            - "everysec"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 200m
+              memory: 256Mi
+          livenessProbe:
+            exec:
+              command:
+                - valkey-cli
+                - ping
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command:
+                - valkey-cli
+                - ping
+            initialDelaySeconds: 5
+            periodSeconds: 5
+  volumeClaimTemplates:
+    - metadata:
+        name: valkey-data
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
