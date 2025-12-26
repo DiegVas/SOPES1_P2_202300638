@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: locust
-          image: 18.222.2.22:5000/locust:latest
+          image: 10.111.22.66:5000/locust:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 8089

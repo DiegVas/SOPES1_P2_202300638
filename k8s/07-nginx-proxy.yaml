@@ -73,7 +73,7 @@ spec:
     spec:
       containers:
         - name: nginx
-          image: 18.222.2.22:5000/nginx:alpine
+          image: 10.111.22.66:5000/nginx:alpine
           ports:
             - containerPort: 80
               name: http

@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-fixer
+  namespace: default
+spec:
+  selector:
+    matchLabels:
+      name: node-fixer
+  template:
+    metadata:
+      labels:
+        name: node-fixer
+    spec:
+      hostPID: true
+      hostNetwork: true
+      containers:
+      - name: fixer
+        image: alpine
+        securityContext:
+          privileged: true
+        command: ["nsenter", "--target", "1", "--mount", "--uts", "--ipc", "--net", "--pid", "--", "sh", "-c"]
+        args:
+        - |
+          echo "Aplicando parche Zot..."
+          IP="10.0.11.157"
+          CONFIG="/etc/containerd/config.toml"
+          
+          # Verificamos si ya existe para no duplicar
+          if grep -q "$IP:5000" "$CONFIG"; then
+            echo "La configuracion ya existe."
+          else
+            echo "Inyectando configuracion insegura..."
+            cat <<EOF >> $CONFIG
+          
+          [plugins."io.containerd.grpc.v1.cri".registry.mirrors."$IP:5000"]
+            endpoint = ["http://$IP:5000"]
+          [plugins."io.containerd.grpc.v1.cri".registry.configs."$IP:5000".tls]
+            insecure_skip_verify = true
+          EOF
+            
+            echo "Reiniciando containerd..."
+            systemctl restart containerd
+          fi
+          
+          # Dormimos para mantener el pod vivo un momento y ver logs
+          sleep 3600
+      tolerations:
+      - operator: "Exists"

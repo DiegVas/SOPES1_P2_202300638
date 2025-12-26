@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: api-rust
-          image: 18.222.2.22:5000/rust-api:latest
+          image: 10.111.22.66:5000/rust-api:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 3000

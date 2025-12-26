@@ -20,7 +20,7 @@ spec:
     spec:
       containers:
         - name: grpc-server
-          image: 18.222.2.22:5000/grpc-server:latest
+          image: 10.111.22.66:5000/grpc-server:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 50051
