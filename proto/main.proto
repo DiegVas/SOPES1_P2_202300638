@@ -2,7 +2,6 @@ syntax = "proto3";
 
 package tweet;
 
-// Asegurate que esta ruta sea correcta para tu proyecto
 option go_package = "./;tweet";
 
 service TweetService {
