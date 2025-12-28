@@ -105,7 +105,8 @@ spec:
           configMap:
             name: nginx-config
 ---
-# Service de nginx expuesto externamente con NodePort
+# Service de nginx - ClusterIP (acceso solo vía Ingress Controller)
+# El Ingress Controller manejará el acceso externo
 apiVersion: v1
 kind: Service
 metadata:
@@ -114,11 +115,10 @@ metadata:
   labels:
     app: nginx-proxy
 spec:
-  type: NodePort
+  type: ClusterIP
   ports:
     - port: 80
       targetPort: 80
-      nodePort: 30300
       protocol: TCP
       name: http
   selector:

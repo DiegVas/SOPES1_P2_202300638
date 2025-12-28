@@ -1,0 +1,103 @@
+# Ingress para exponer los servicios de la aplicación en EC2
+# Arquitectura de dos capas: Ingress Controller -> NGINX Proxy -> API Services
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blackfriday-ingress
+  namespace: blackfriday
+  annotations:
+    # Configuración básica
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+
+    # Timeouts - alineados con nginx-proxy interno (60s)
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+
+    # Tamaño de body
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+
+    # Buffering optimizado para proxy en cascada
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "8k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+
+    # Keep-alive para conexiones persistentes con nginx-proxy
+    nginx.ingress.kubernetes.io/upstream-keepalive-connections: "100"
+    nginx.ingress.kubernetes.io/upstream-keepalive-timeout: "60"
+
+    # Headers personalizados
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Ingress-Controller "nginx";
+      more_set_headers "X-Layer: ingress-controller";
+spec:
+  ingressClassName: nginx
+  rules:
+    # Sin host específico para acceso por IP en EC2
+    - http:
+        paths:
+          # Ruta principal -> NGINX Proxy -> API Rust
+          # El nginx-proxy maneja balanceo interno y health checks
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-proxy-service
+                port:
+                  number: 80
+
+          # Go API REST - Acceso directo (bypass nginx-proxy)
+          - path: /api/go
+            pathType: Prefix
+            backend:
+              service:
+                name: go-api-rest-service
+                port:
+                  number: 8080
+
+          # Grafana - Monitoreo
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-service
+                port:
+                  number: 3000
+
+          # Locust - Testing de carga
+          - path: /locust
+            pathType: Prefix
+            backend:
+              service:
+                name: locust-service
+                port:
+                  number: 8089
+---
+# Ingress adicional para acceso directo a API Rust (sin nginx-proxy)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blackfriday-api-direct
+  namespace: blackfriday
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          # API Rust directa
+          - path: /api/rust(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api-rust-service
+                port:
+                  number: 3000

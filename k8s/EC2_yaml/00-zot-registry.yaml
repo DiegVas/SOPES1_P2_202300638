@@ -1,0 +1,109 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zot-config
+  namespace: blackfriday
+data:
+  config.json: |
+    {
+      "distSpecVersion": "1.1.0",
+      "storage": {
+        "rootDirectory": "/var/lib/registry"
+      },
+      "http": {
+        "address": "0.0.0.0",
+        "port": "5000"
+      },
+      "log": {
+        "level": "info",
+        "output": "/tmp/zot.log"
+      }
+    }
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: zot-storage
+  namespace: blackfriday
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 10Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zot-registry
+  namespace: blackfriday
+  labels:
+    app: zot-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: zot-registry
+  template:
+    metadata:
+      labels:
+        app: zot-registry
+    spec:
+      containers:
+        - name: zot
+          image: ghcr.io/project-zot/zot-linux-amd64:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+              name: http
+          volumeMounts:
+            - name: zot-config
+              mountPath: /etc/zot
+              readOnly: true
+            - name: zot-storage
+              mountPath: /var/lib/registry
+          env:
+            - name: ZOT_LOG_LEVEL
+              value: "info"
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          livenessProbe:
+            httpGet:
+              path: /v2/
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /v2/
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+      volumes:
+        - name: zot-config
+          configMap:
+            name: zot-config
+        - name: zot-storage
+          persistentVolumeClaim:
+            claimName: zot-storage
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: zot-service
+  namespace: blackfriday
+spec:
+  type: NodePort
+  selector:
+    app: zot-registry
+  ports:
+    - name: http
+      protocol: TCP
+      port: 5000
+      targetPort: 5000
+      nodePort: 30500

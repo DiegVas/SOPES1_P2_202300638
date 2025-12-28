@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: locust
+  namespace: blackfriday
+  labels:
+    app: locust
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: locust
+  template:
+    metadata:
+      labels:
+        app: locust
+    spec:
+      containers:
+        - name: locust
+          image: 3.129.65.122:30000/locust:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8089
+              name: web
+          args:
+            - "--host=http://nginx-proxy-service:80"
+            - "--web-host=0.0.0.0"
+            - "--web-port=8089"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: locust-service
+  namespace: blackfriday
+  labels:
+    app: locust
+spec:
+  selector:
+    app: locust
+  ports:
+    - protocol: TCP
+      port: 8089
+      targetPort: 8089
+      nodePort: 30089
+      name: web
+  type: NodePort

@@ -1,0 +1,37 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kafka-consumer
+  namespace: blackfriday
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: kafka-consumer
+  template:
+    metadata:
+      labels:
+        app: kafka-consumer
+    spec:
+      containers:
+        - name: kafka-consumer
+          image: 3.129.65.122:30000/kafka-consumer:latest
+          imagePullPolicy: Always
+          env:
+            - name: KAFKA_BROKER
+              value: "kafka-service:9092"
+            - name: KAFKA_TOPIC
+              value: "compras"
+            - name: REDIS_ADDR
+              value: "valkey-service:6379"
+            - name: CONSUMER_GROUP
+              value: "valkey-consumer-group"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          # El consumidor no necesita probes ya que es un proceso continuo
+          # que no expone puertos HTTP

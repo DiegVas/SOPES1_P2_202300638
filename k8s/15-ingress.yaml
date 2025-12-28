@@ -1,0 +1,131 @@
+# Ingress para exponer los servicios de la aplicación
+# Arquitectura de dos capas: Ingress Controller -> NGINX Proxy -> API Services
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blackfriday-ingress
+  namespace: blackfriday
+  annotations:
+    # Configuración básica
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+
+    # Timeouts - alineados con nginx-proxy interno (60s)
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+
+    # Tamaño de body
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+
+    # Buffering optimizado para proxy en cascada
+    nginx.ingress.kubernetes.io/proxy-buffering: "on"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "8k"
+    nginx.ingress.kubernetes.io/proxy-buffers-number: "8"
+
+    # Keep-alive para conexiones persistentes con nginx-proxy
+    nginx.ingress.kubernetes.io/upstream-keepalive-connections: "100"
+    nginx.ingress.kubernetes.io/upstream-keepalive-timeout: "60"
+
+    # Headers personalizados
+    nginx.ingress.kubernetes.io/configuration-snippet: |
+      proxy_set_header X-Forwarded-Host $host;
+      proxy_set_header X-Ingress-Controller "nginx";
+      more_set_headers "X-Layer: ingress-controller";
+spec:
+  ingressClassName: nginx
+  rules:
+    # Regla principal - Tráfico a través de NGINX Proxy (capa interna)
+    - host: blackfriday.local
+      http:
+        paths:
+          # Ruta principal -> NGINX Proxy -> API Rust
+          # El nginx-proxy maneja balanceo interno y health checks
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: nginx-proxy-service
+                port:
+                  number: 80
+
+          # Go API REST - Acceso directo (bypass nginx-proxy)
+          - path: /api/go
+            pathType: Prefix
+            backend:
+              service:
+                name: go-api-rest-service
+                port:
+                  number: 8080
+
+          # Grafana - Monitoreo
+          - path: /grafana
+            pathType: Prefix
+            backend:
+              service:
+                name: grafana-service
+                port:
+                  number: 3000
+
+          # Locust - Testing de carga
+          - path: /locust
+            pathType: Prefix
+            backend:
+              service:
+                name: locust-service
+                port:
+                  number: 8089
+---
+# Ingress adicional para dominios específicos
+# Nota: Estas rutas van DIRECTAMENTE a los servicios (bypass del nginx-proxy)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: blackfriday-services-ingress
+  namespace: blackfriday
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+spec:
+  ingressClassName: nginx
+  rules:
+    # API Rust con rewrite
+    - host: api.blackfriday.local
+      http:
+        paths:
+          - path: /(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: api-rust-service
+                port:
+                  number: 3000
+
+    # Grafana con dominio propio
+    - host: grafana.blackfriday.local
+      http:
+        paths:
+          - path: /(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: grafana-service
+                port:
+                  number: 3000
+
+    # Locust con dominio propio
+    - host: locust.blackfriday.local
+      http:
+        paths:
+          - path: /(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: locust-service
+                port:
+                  number: 8089
